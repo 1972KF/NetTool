@@ -53,3 +53,38 @@ def mainloop():
                 table1.add_row(client['ip'], client['mac'])
 
             console.print(table1)
+        
+        elif command == '2':
+
+            def syn_scan(target, port):
+                pkt = IP(dst=target)/TCP(dport=port, flags='S')
+                resp = sr1(pkt, timeout=1, verbose=0)
+                if resp is None:
+                    return False
+                if resp.haslayer(TCP):
+                    if resp.getlayer(TCP).flags == 0x12:
+                        rst_pkt = IP(dst=target)/TCP(dport=port, flags='R')
+                        sr1(rst_pkt, timeout=1, verbose=0)
+                        return True
+                return False
+
+            def main():
+                target = Prompt.ask("Enter Target IP or domain")
+                while True:
+                    port_start = IntPrompt.ask("Enter port range start (1-65535)")
+                    port_end = IntPrompt.ask("Enter port range end (1-65535)")
+                    if 1 <= port_start <= 65535 and 1 <= port_end <= 65535 and port_start <= port_end:
+                        break
+                    console.print("[red]Invalid port range! Try again.[/red]")
+
+                console.print(f"Scanning target: [bold]{target}[/bold]")
+                try:
+                    for port in track(range(port_start, port_end + 1), description="Scanning ports..."):
+                        if syn_scan(target, port):
+                            console.print(f"[green]Port {port} is open[/green]")
+                except KeyboardInterrupt:
+                    console.print("\n[bold red]Scan aborted by user![/bold red]")
+                    sys.exit()
+
+            if __name__ == "__main__":
+                main()
