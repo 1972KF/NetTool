@@ -155,3 +155,20 @@ def mainloop():
 
         if __name__ == "__main__":
             main()
+#hidden wifi scanner---------------------------
+
+        elif command == '4':
+            pass # Placeholder for wifi scanner module logic
+
+        # ---------------------------------------------exit ---------------------------------------
+
+        elif command == '5':
+            # Placeholder for help module logic
+            print("Help section not implemented yet.")
+            sys.exit()
+
+        # ----------------------------------------------return error-------------------------------------
+        else:
+            console.print("[!] Error: Invalid command..." ,style='red on white')
+            mainloop()
+mainloop()
