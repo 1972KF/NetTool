@@ -14,4 +14,8 @@ from rich.console import Console, Group
 import re
 import socket 
 from datetime import datetime
+#panels---------------------
+panel1 = Panel("[bold blue]Network Scanner Script[/]\n[red][1]network scan\n[2]open ports scan\n[3]hidden wifi scan\n[4]web server scan\n[5]exit",title="services list",subtitle="1972Cyrus",title_align='right',subtitle_align='left')
 
+console = Console()
+console.print(panel1)
