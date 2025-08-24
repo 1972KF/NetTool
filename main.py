@@ -8,15 +8,19 @@ from rich.prompt import IntPrompt
 from rich.table import Table
 from rich.style import Style
 from rich.progress import track
+from rich.progress import Progress
 from rich.panel import Panel
 from rich.console import Console, Group
 # other-------------------------------
 import re
+import ssl
+import time
+import requests
 import socket 
 from datetime import datetime
 import sys
 #Initial panel---------------------
-panel1 = Panel("[bold blue]Network Scanner Script[/]\n[red][1]network scan\n[2]open ports scan\n[3]hidden wifi scan\n[4]web server scan\n[5]exit",title="services list",subtitle="1972Cyrus",title_align='right',subtitle_align='left')
+panel1 = Panel("[bold blue]---NetTool Script---[/]\n[red][1]network scan\n[2]open ports scan\n[3]web server type finder\n[4]mini traceroute (:\n[5]exit",title="services list",subtitle="1972Cyrus",title_align='right',subtitle_align='left')
 
 console = Console()
 console.print(panel1)
@@ -160,7 +164,95 @@ def mainloop():
 #hidden wifi scanner------------------------------------------------------------------------------
 
         elif command == '4':
-            pass # Placeholder for wifi scanner module logic
+            console = Console()
+            def get_ip_location(ip):
+                """Fetch geographic location (lat, lon) for a given IP using ip-api."""
+                try:
+                    response = requests.get(f"http://ip-api.com/json/{ip}?fields=status,lat,lon", timeout=5)
+                    data = response.json()
+                    if data.get('status') == 'success':
+                        return data['lat'], data['lon']
+                except Exception:
+                    return None
+                return None
+
+            def build_google_maps_link(coords):
+                """Build Google Maps link for given list of coordinates."""
+                if not coords:
+                    return None
+                base_url = "https://www.google.com/maps/dir/"
+                path = "/".join([f"{lat},{lon}" for lat, lon in coords])
+                return base_url + path
+
+            def traceroute_udp(target, max_hops=30, timeout=2):
+                port = 33434
+                hops = []
+                coords = []
+
+                try:
+                    dest_ip = socket.gethostbyname(target)
+                except socket.gaierror:
+                    console.print("[bold red]Invalid target address[/bold red]")
+                    return [], None
+
+                console.print(f"[bold green]Starting traceroute to:[/bold green] [cyan]{target}[/cyan] ({dest_ip})\n")
+
+                # Table for results
+                table = Table(title="Traceroute Results", show_lines=True)
+                table.add_column("Hop", justify="center", style="bold yellow")
+                table.add_column("IP Address", justify="center", style="cyan")
+                table.add_column("Latency (ms)", justify="center", style="bold green")
+
+                with Progress() as progress:
+                    task = progress.add_task("[green]Tracing route...", total=max_hops)
+
+                    for ttl in range(1, max_hops + 1):
+                        send_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+                        send_sock.setsockopt(socket.SOL_IP, socket.IP_TTL, ttl)
+                        recv_sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
+                        recv_sock.settimeout(timeout)
+                        recv_sock.bind(("", port))
+
+                        start_time = time.time()
+                        send_sock.sendto(b"", (target, port))
+
+                        curr_addr = None
+                        try:
+                            data, addr = recv_sock.recvfrom(512)
+                            curr_addr = addr[0]
+                            elapsed = (time.time() - start_time) * 1000
+                            hops.append(curr_addr)
+                            table.add_row(str(ttl), curr_addr, f"{elapsed:.2f}")
+
+                            # Fetch location
+                            location = get_ip_location(curr_addr)
+                            if location:
+                                coords.append(location)
+
+                            if curr_addr == dest_ip:
+                                console.print("[bold cyan]\nDestination reached![/bold cyan]")
+                                break
+
+                        except socket.timeout:
+                            table.add_row(str(ttl), "*", "*")
+                        finally:
+                            send_sock.close()
+                            recv_sock.close()
+
+                        progress.advance(task)
+
+                    console.print("\n", table)
+                    map_link = build_google_maps_link(coords)
+                    return hops, map_link
+
+                if __name__ == "__main__":
+                    target = input("Enter destination address: ")
+                    hops, map_link = traceroute_udp(target)
+
+                    if map_link:
+                        console.print(f"\n[bold magenta]Google Maps Link:[/bold magenta]\n[blue underline]{map_link}[/blue underline]")
+                    else:
+                        console.print("\n[red]No coordinates found for map link.[/red]")
 
         # ---------------------------------------------exit ---------------------------------------
 
