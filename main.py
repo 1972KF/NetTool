@@ -14,6 +14,7 @@ from rich.console import Console, Group
 import re
 import socket 
 from datetime import datetime
+import sys
 #Initial panel---------------------
 panel1 = Panel("[bold blue]Network Scanner Script[/]\n[red][1]network scan\n[2]open ports scan\n[3]hidden wifi scan\n[4]web server scan\n[5]exit",title="services list",subtitle="1972Cyrus",title_align='right',subtitle_align='left')
 
@@ -26,7 +27,7 @@ def mainloop():
 #start and services list---
         command = Prompt.ask('[?]:(just number) ' ,choices=["1", "2", "3", "4","5"])
 
-#network scanner-----------
+#network scanner------------------------------------------------------------------------
         # Initialize console and table
         console = Console()
         table1 = Table(show_header=True, header_style="bold magenta")
@@ -53,7 +54,7 @@ def mainloop():
                 table1.add_row(client['ip'], client['mac'])
 
             console.print(table1)
-        
+# port-scaning-----------------------------------------------------------------------
         elif command == '2':
 
             def syn_scan(target, port):
@@ -88,74 +89,75 @@ def mainloop():
 
             if __name__ == "__main__":
                 main()
-#web server type finder--------------------
+#web server type finder-------------------------------------------------------------------
         elif command == '3':
-            def tcp_handshake(ip, port=80, timeout=2):
-                seq = 1000
-                syn = IP(dst=ip)/TCP(dport=port, flags='S', seq=seq)
-                synack = sr1(syn, timeout=timeout, verbose=0)
-                if synack is None or synack[TCP].flags != 0x12:  
-                    return None, None, None
-    
-                ack_pkt = IP(dst=ip)/TCP(dport=port, flags='A', seq=seq+1, ack=synack.seq + 1)
-                send(ack_pkt, verbose=0)
-    
-                return synack, seq+1, synack.seq + 1
+            def check_port(ip, port, timeout=2):
+                try:
+                    sock = socket.create_connection((ip, port), timeout=timeout)
+                    sock.close()
+                    return True
+                except:
+                    return False
 
-            def send_http_request(ip, port=80, seq=0, ack=0, timeout=3):
-                http_get = (
-                    "GET / HTTP/1.1\r\n"
-                    f"Host: {ip}\r\n"
-                    "User-Agent: Scapy HTTP Client\r\n"
-                    "Connection: close\r\n\r\n"
-                )
-    
-                packet = IP(dst=ip)/TCP(dport=port, flags='PA', seq=seq, ack=ack)/Raw(load=http_get)
-                response = sr1(packet, timeout=timeout, verbose=0)
-    
-                if response and Raw in response:
-                    try:
-                        return response[Raw].load.decode(errors='ignore')
-                    except Exception:
-                        return None
-                return None
+            def get_http_headers(ip, port=80, use_https=False):
+                try:
+                    sock = socket.create_connection((ip, port), timeout=3)
+                    if use_https:
+                        context = ssl.create_default_context()
+                        sock = context.wrap_socket(sock, server_hostname=ip)
+                    
+                    http_request = f"GET / HTTP/1.1\r\nHost: {ip}\r\nConnection: close\r\n\r\n"
+                    sock.sendall(http_request.encode())
+        
+                    response = b""
+                    while True:
+                        data = sock.recv(4096)
+                        if not data:
+                            break
+                        response += data
+                    sock.close()
+        
+                    return response.decode(errors="ignore")
+                except Exception as e:
+                    return None
 
-        def extract_server_type(http_response):
-            if http_response:
-                match = re.search(r"Server:\s*([^\r\n]+)", http_response, re.IGNORECASE)
-                if match:
-                    return match.group(1).strip()
-            return "Unknown"
+            def extract_server_type(http_response):
+                if http_response:
+                    match = re.search(r"Server:\s*([^\r\n]+)", http_response, re.IGNORECASE)
+                    if match:
+                        return match.group(1).strip()
+                return "Unknown"
 
-        def main():
-            url = console.input("[bold cyan]Enter target URL or IP:[/bold cyan] ").strip()
+            def main():
+                console = Console()
+                target = console.input("[bold cyan]Enter target domain or IP:[/bold cyan] ").strip()
+                
+                try:
+                    ip = socket.gethostbyname(target)
+                except Exception as e:
+                    console.print(f"[bold red]Error resolving hostname:[/bold red] {e}")
+                    return
     
-            try:
-                ip = socket.gethostbyname(url)
-            except Exception as e:
-                console.print(f"[bold red]Error resolving hostname:[/bold red] {e}")
-                return
+                console.print(f"[yellow]Checking open ports on {ip}...[/yellow]")
+                
+                server_type = "Unknown"
+                if check_port(ip, 80):
+                    console.print("[green]Port 80 open → HTTP[/green]")
+                    response = get_http_headers(ip, 80, use_https=False)
+                    server_type = extract_server_type(response)
+                elif check_port(ip, 443):
+                    console.print("[green]Port 443 open → HTTPS[/green]")
+                    response = get_http_headers(ip, 443, use_https=True)
+                    server_type = extract_server_type(response)
+                else:
+                    console.print("[bold red]No HTTP/HTTPS port open or accessible.[/bold red]")
+                    return
     
-            console.print(f"[cyan]Starting TCP handshake with {ip}...[/cyan]")
-            synack, seq, ack = tcp_handshake(ip)
-    
-            if synack is None:
-                console.print("[bold red]TCP handshake failed. Server might be down or filtered.[/bold red]")
-                return
-    
-            console.print("[green]Handshake success! Sending HTTP request...[/green]")
-            http_response = send_http_request(ip, seq=seq, ack=ack)
-    
-            if http_response is None:
-                console.print("[bold red]No HTTP response received.[/bold red]")
-                return
-    
-            server_type = extract_server_type(http_response)
-            console.print(f"[bold yellow]Detected Web Server:[/bold yellow] {server_type}")
+                console.print(f"[bold yellow]Detected Web Server:[/bold yellow] {server_type}")
 
-        if __name__ == "__main__":
-            main()
-#hidden wifi scanner---------------------------
+            if __name__ == "__main__":
+                main()
+#hidden wifi scanner------------------------------------------------------------------------------
 
         elif command == '4':
             pass # Placeholder for wifi scanner module logic
