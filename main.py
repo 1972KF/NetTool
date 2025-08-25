@@ -164,7 +164,7 @@ def mainloop():
 #hidden wifi scanner------------------------------------------------------------------------------
 
         elif command == '4':
-            console = Console()
+            console=Console()
             def get_ip_location(ip):
                 """Fetch geographic location (lat, lon) for a given IP using ip-api."""
                 try:
@@ -245,14 +245,14 @@ def mainloop():
                     map_link = build_google_maps_link(coords)
                     return hops, map_link
 
-                if __name__ == "__main__":
-                    target = input("Enter destination address: ")
-                    hops, map_link = traceroute_udp(target)
+                
+            target = console.input("Enter destination address: ").strip()
+            hops, map_link = traceroute_udp(target)
 
-                    if map_link:
-                        console.print(f"\n[bold magenta]Google Maps Link:[/bold magenta]\n[blue underline]{map_link}[/blue underline]")
-                    else:
-                        console.print("\n[red]No coordinates found for map link.[/red]")
+            if map_link:
+                console.print(f"\n[bold magenta]Google Maps Link:[/bold magenta]\n[blue underline]{map_link}[/blue underline]")
+            else:
+                console.print("\n[red]No coordinates found for map link.[/red]")
 
         # ---------------------------------------------exit ---------------------------------------
 
