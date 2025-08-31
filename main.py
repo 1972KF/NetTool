@@ -15,6 +15,7 @@ import re
 import socket 
 from datetime import datetime
 import sys
+import ssl
 #Initial panel---------------------
 panel1 = Panel("[bold blue]Network Scanner Script[/]\n[red][1]network scan\n[2]open ports scan\n[3]hidden wifi scan\n[4]web server scan\n[5]exit",title="services list",subtitle="1972Cyrus",title_align='right',subtitle_align='left')
 
